@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-dark-900: #0a0a0f;
+  --color-dark-800: #12121a;
+  --color-dark-700: #1a1a2e;
+  --color-dark-600: #22223a;
+  --color-dark-500: #2a2a40;
+  --color-dark-400: #3a3a55;
+  --color-dark-300: #5a5a7a;
+  --color-dark-200: #8a8aaa;
+  --color-dark-100: #b0b0cc;
+
+  --color-accent-cyan: #06b6d4;
+  --color-accent-cyan-light: #22d3ee;
+  --color-accent-indigo: #6366f1;
+  --color-accent-indigo-light: #818cf8;
+  --color-accent-purple: #a855f7;
+  --color-accent-green: #10b981;
+  --color-accent-red: #ef4444;
+  --color-accent-amber: #f59e0b;
+  --color-accent-blue: #3b82f6;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-headline: 'Manrope', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-label: 'Inter', system-ui, sans-serif;
+
+  --color-on-primary-fixed: #00174b;
+  --color-tertiary-container: #c84000;
+  --color-surface-container-high: #e5e8ed;
+  --color-outline-variant: #c2c6d9;
+  --color-secondary-container: #d4e1f5;
+  --color-surface-bright: #f7f9fe;
+  --color-surface-tint: #0053da;
+  --color-on-secondary: #ffffff;
+  --color-on-primary: #ffffff;
+  --color-surface-container-low: #f1f4f9;
+  --color-secondary-fixed: #d7e3f7;
+  --color-tertiary-fixed: #ffdbcf;
+  --color-on-tertiary-fixed-variant: #832700;
+  --color-secondary: #535f70;
+  --color-error-container: #ffdad6;
+  --color-inverse-surface: #2d3135;
+  --color-surface-container-highest: #dfe3e8;
+  --color-surface-variant: #dfe3e8;
+  --color-tertiary: #9e3100;
+  --color-surface-dim: #d7dadf;
+  --color-error: #ba1a1a;
+  --color-on-tertiary: #ffffff;
+  --color-on-surface-variant: #424656;
+  --color-tertiary-fixed-dim: #ffb59c;
+  --color-background: #f7f9fe;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-primary-fixed-variant: #003ea8;
+  --color-primary-fixed: #dbe1ff;
+  --color-inverse-on-surface: #eef1f6;
+  --color-on-tertiary-container: #fff1ed;
+  --color-primary: #004cca;
+  --color-outline: #737687;
+  --color-on-surface: #181c20;
+  --color-on-secondary-fixed-variant: #3c4858;
+  --color-on-error: #ffffff;
+  --color-primary-container: #0062ff;
+  --color-surface-container: #ebeef3;
+  --color-on-background: #181c20;
+  --color-on-secondary-container: #576474;
+  --color-inverse-primary: #b4c5ff;
+  --color-on-error-container: #93000a;
+  --color-secondary-fixed-dim: #bbc7db;
+  --color-on-tertiary-fixed: #390c00;
+  --color-on-primary-container: #f3f3ff;
+  --color-primary-fixed-dim: #b4c5ff;
+  --color-surface: #f7f9fe;
+  --color-on-secondary-fixed: #101c2b;
+}
+
+/* === Base Styles === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Glass Card Utility === */
+.glass {
+  background: rgba(26, 26, 46, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 16px;
+}
+
+.glass-hover {
+  transition: all 0.3s ease;
+}
+
+.glass-hover:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.1), 0 0 60px rgba(6, 182, 212, 0.05);
+  transform: translateY(-2px);
+}
+
+/* === Animated Gradient Background === */
+.gradient-bg {
+  background: linear-gradient(135deg, var(--color-dark-900) 0%, var(--color-dark-800) 25%, #0f172a 50%, var(--color-dark-800) 75%, var(--color-dark-900) 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* === Glow Effects === */
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 40px rgba(6, 182, 212, 0.1);
+}
+
+.glow-indigo {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), 0 0 40px rgba(99, 102, 241, 0.1);
+}
+
+/* === Spinner === */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--color-accent-cyan);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 0.6s linear infinite;
+}
+
+/* === Floating Particles === */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+}
+
+.particle {
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  background: var(--color-accent-cyan);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: float linear infinite;
+  opacity: 0;
+}
+
+/* === React Flow Overrides === */
+.react-flow__node {
+  font-family: var(--font-sans);
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-dark-900);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-dark-500);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-dark-400);
+}
+
+/* === Step connector line === */
+.step-connector {
+  position: absolute;
+  left: 19px;
+  top: 48px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--color-accent-indigo), transparent);
+}
