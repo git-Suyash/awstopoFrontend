@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { MdAccountTree } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
@@ -28,7 +29,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="bg-surface text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed min-h-screen flex flex-col font-body">
+        <div className="bg-surface text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed min-h-[calc(100vh-56px)] flex flex-col font-body">
             {/* Subtle Background Texture */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]"></div>
@@ -40,13 +41,13 @@ export default function LoginPage() {
                 <div className="w-full max-w-[440px]">
                     {/* Logo Section */}
                     <div className="flex flex-col items-center mb-10">
-                        <div className="mb-4 flex items-center justify-center w-12 h-12 bg-primary rounded-xl shadow-lg shadow-primary/20">
-                            <span className="material-symbols-outlined text-white text-2xl">cloud</span>
+                        <div className="inline-flex items-center justify-center p-3 rounded-xl bg-surface-container-low mb-4">
+                            <MdAccountTree className="text-primary text-3xl" />
                         </div>
-                        <h1 className="font-headline text-2xl font-extrabold tracking-tighter text-on-surface">
-                            Digital Cartographer
+                        <h1 className="font-headline text-3xl font-extrabold tracking-tighter text-on-surface">
+                            AWSTopo
                         </h1>
-                        <p className="text-on-secondary-container text-sm mt-1 font-medium">Architectural Intelligence for AWS</p>
+                        <p className="text-on-secondary-container text-sm mt-1 font-medium">Internal AWS Infrastructure Visualizer</p>
                     </div>
                     
                     {/* Sign In Card */}

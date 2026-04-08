@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiLogin, apiSignup } from '../api/api';
 
 interface User {
     id: string;
@@ -10,7 +11,7 @@ interface AuthContextType {
     user: User | null;
     token: string | null;
     login: (email: string, password: string) => Promise<void>;
-    register: (name: string, email: string, password: string) => Promise<void>;
+    register: (email: string, password: string) => Promise<void>;
     logout: () => void;
     loading: boolean;
 }
@@ -23,14 +24,15 @@ export function useAuth(): AuthContextType {
     return ctx;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+function userFromEmail(email: string): User {
+    return { id: email, name: email.split('@')[0], email };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Hydrate from localStorage on mount
     useEffect(() => {
         const savedToken = localStorage.getItem('auth_token');
         const savedUser = localStorage.getItem('auth_user');
@@ -42,57 +44,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (email: string, password: string) => {
-        if (API_BASE) {
-            const res = await fetch(`${API_BASE}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.message || 'Login failed');
-            }
-            const data = await res.json();
-            setToken(data.token);
-            setUser(data.user);
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('auth_user', JSON.stringify(data.user));
-        } else {
-            // Mock login for development
-            const mockUser: User = { id: '1', name: email.split('@')[0], email };
-            const mockToken = 'mock-jwt-token-' + Date.now();
-            setToken(mockToken);
-            setUser(mockUser);
-            localStorage.setItem('auth_token', mockToken);
-            localStorage.setItem('auth_user', JSON.stringify(mockUser));
-        }
+        const data = await apiLogin(email, password);
+        const u = userFromEmail(email);
+        setToken(data.access_token);
+        setUser(u);
+        localStorage.setItem('auth_token', data.access_token);
+        localStorage.setItem('auth_user', JSON.stringify(u));
     };
 
-    const register = async (name: string, email: string, password: string) => {
-        if (API_BASE) {
-            const res = await fetch(`${API_BASE}/api/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password }),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.message || 'Registration failed');
-            }
-            const data = await res.json();
-            setToken(data.token);
-            setUser(data.user);
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('auth_user', JSON.stringify(data.user));
-        } else {
-            // Mock register
-            const mockUser: User = { id: '1', name, email };
-            const mockToken = 'mock-jwt-token-' + Date.now();
-            setToken(mockToken);
-            setUser(mockUser);
-            localStorage.setItem('auth_token', mockToken);
-            localStorage.setItem('auth_user', JSON.stringify(mockUser));
-        }
+    const register = async (email: string, password: string) => {
+        const data = await apiSignup(email, password);
+        const u = userFromEmail(email);
+        setToken(data.access_token);
+        setUser(u);
+        localStorage.setItem('auth_token', data.access_token);
+        localStorage.setItem('auth_user', JSON.stringify(u));
     };
 
     const logout = () => {

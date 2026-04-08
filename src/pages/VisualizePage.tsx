@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
     ReactFlow,
     Controls,
@@ -15,7 +15,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { getPipelineResults, type ScanResult } from '../api/api';
+import { getPipelineResults } from '../api/api';
+import { MdCloud, MdHub, MdClose, MdLogout } from 'react-icons/md';
+import { useAuth } from '../context/AuthContext';
 import { layoutNodes } from '../nodes/layoutEngine';
 import Loader from '../components/Loader';
 
@@ -25,6 +27,7 @@ import Ec2Node from '../nodes/Ec2Node';
 import SecurityGroupNode from '../nodes/SecurityGroupNode';
 import IgwNode from '../nodes/IgwNode';
 import GenericNode from '../nodes/GenericNode';
+import type { ScanResult } from '../types/types';
 
 const nodeTypes = {
     vpc: VpcNode,
@@ -37,6 +40,8 @@ const nodeTypes = {
 
 export default function VisualizePage() {
     const { id } = useParams<{ id: string }>();
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [loading, setLoading] = useState(true);
@@ -115,14 +120,25 @@ export default function VisualizePage() {
             {/* TopAppBar */}
             <header className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center w-full px-6 py-3 h-16 bg-[#f7f9fe] border-b border-surface-container">
                 <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-primary">cloud</span>
-                    <h1 className="text-lg font-extrabold text-[#181c20] font-headline tracking-tight uppercase">Digital Cartographer</h1>
+                    <MdCloud className="text-primary text-xl" />
+                    <h1 className="text-lg font-extrabold text-[#181c20] font-headline tracking-tight uppercase">AWSTopo</h1>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                     <nav className="hidden md:flex items-center gap-8 font-headline font-bold tracking-tight">
                         <Link to={`/visualize/${id}`} className="text-primary border-b-2 border-primary px-1 py-1">Architecture</Link>
                         <Link to="/configure" className="text-on-secondary-container hover:bg-surface-container-highest px-2 py-1 rounded transition-colors">Configuration</Link>
                     </nav>
+                    <div className="flex items-center gap-3 pl-4 border-l border-surface-container">
+                        <span className="text-xs text-on-secondary-container hidden sm:block">{user?.email}</span>
+                        <button
+                            onClick={() => { logout(); navigate('/login'); }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-[#576474] hover:bg-error-container hover:text-on-error-container transition-colors"
+                            title="Sign out"
+                        >
+                            <MdLogout className="text-base" />
+                            <span className="hidden sm:block">Sign out</span>
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -144,7 +160,7 @@ export default function VisualizePage() {
 
                     <nav className="flex flex-col gap-1 text-sm font-medium">
                         <button className="flex items-center gap-3 px-3 py-3 bg-white text-primary font-semibold rounded-lg shadow-sm transition-all duration-300">
-                            <span className="material-symbols-outlined">hub</span>
+                            <MdHub className="text-xl" />
                             Architecture
                         </button>
                     </nav>
@@ -216,8 +232,12 @@ export default function VisualizePage() {
                             {/* Region Panel */}
                             <Panel position="bottom-left">
                                 <div className="flex items-center gap-3 px-4 py-2 bg-surface-container-lowest/80 backdrop-blur-md rounded-full shadow-sm border border-outline-variant/15">
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-on-secondary-container">Active Region</span>
-                                    <span className="text-xs font-bold text-primary">AWS Cloud</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-on-secondary-container">Regions</span>
+                                    <span className="text-xs font-bold text-primary">
+                                        {scanData?.regions_scanned?.length
+                                            ? scanData.regions_scanned.join(', ')
+                                            : 'AWS Cloud'}
+                                    </span>
                                 </div>
                             </Panel>
                         </ReactFlow>
@@ -233,7 +253,7 @@ export default function VisualizePage() {
                                  onClick={() => setSelectedNode(null)}
                                  className="w-6 h-6 rounded flex items-center justify-center hover:bg-surface-container-highest transition-colors"
                              >
-                                 <span className="material-symbols-outlined text-sm">close</span>
+                                 <MdClose className="text-sm" />
                              </button>
                         </div>
 

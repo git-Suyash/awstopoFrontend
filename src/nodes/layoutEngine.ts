@@ -1,4 +1,4 @@
-import type { ScanNode } from '../api/api';
+import type { ScanNode } from '../types/types';
 
 interface LayoutNode {
     id: string;

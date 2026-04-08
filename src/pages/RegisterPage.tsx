@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { MdAccountTree } from 'react-icons/md';
 import { useAuth } from '../context/AuthContext';
 
 export default function RegisterPage() {
-    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
@@ -13,16 +12,16 @@ export default function RegisterPage() {
     const { register } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setError('');
-        if (!name || !email || !password || !confirm) { setError('All fields are required'); return; }
+        if (!email || !password || !confirm) { setError('All fields are required'); return; }
         if (password !== confirm) { setError('Passwords do not match'); return; }
         if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
 
         setLoading(true);
         try {
-            await register(name, email, password);
+            await register(email, password);
             navigate('/configure');
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Registration failed');
@@ -32,16 +31,16 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
+        <div className="bg-surface font-body text-on-surface min-h-[calc(100vh-56px)] flex flex-col">
             <main className="flex-grow flex items-center justify-center px-6 py-12">
                 <div className="max-w-md w-full">
                     {/* Brand Anchor */}
                     <div className="text-center mb-10">
                         <div className="inline-flex items-center justify-center p-3 rounded-xl bg-surface-container-low mb-4">
-                            <span className="material-symbols-outlined text-primary text-3xl">cloud</span>
+                            <MdAccountTree className="text-primary text-3xl" />
                         </div>
-                        <h1 className="font-headline font-extrabold text-3xl tracking-tighter text-on-surface mb-2">The Digital Cartographer</h1>
-                        <p className="text-on-secondary-container font-medium text-sm">Design your infrastructure with editorial precision.</p>
+                        <h1 className="font-headline font-extrabold text-3xl tracking-tighter text-on-surface mb-2">AWSTopo</h1>
+                        <p className="text-on-secondary-container font-medium text-sm">Internal AWS Infrastructure Visualizer</p>
                     </div>
                     
                     {/* Registration Card */}
@@ -49,18 +48,6 @@ export default function RegisterPage() {
                         <h2 className="font-headline font-bold text-xl text-on-surface mb-8 tracking-tight">Create your account</h2>
                         
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            {/* Full Name */}
-                            <div>
-                                <label className="block text-[10px] font-bold uppercase tracking-widest text-on-secondary-container mb-2 ml-1" htmlFor="full_name">Full Name</label>
-                                <div className="relative">
-                                    <input 
-                                        className="w-full bg-surface-container-low border-none focus:ring-0 focus:bg-surface-container-lowest border-b-2 border-transparent focus:border-primary transition-all duration-300 py-3 px-4 rounded-lg text-on-surface placeholder:text-outline-variant font-medium" 
-                                        id="full_name" type="text" placeholder="John Doe" 
-                                        value={name} onChange={(e) => setName(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            
                             {/* Email */}
                             <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-widest text-on-secondary-container mb-2 ml-1" htmlFor="email">Email Address</label>
@@ -116,7 +103,7 @@ export default function RegisterPage() {
                         </div>
                     </div>
                     
-                    {/* Visual Decoration */}
+                    {/* Visual Decoration
                     <div className="mt-12 flex justify-center space-x-8 opacity-20 grayscale transition-all hover:grayscale-0 hover:opacity-40">
                         <div className="flex items-center space-x-2">
                             <span className="material-symbols-outlined text-sm">verified_user</span>
@@ -126,14 +113,14 @@ export default function RegisterPage() {
                             <span className="material-symbols-outlined text-sm">hub</span>
                             <span className="text-[10px] font-bold uppercase tracking-widest">AWS Certified</span>
                         </div>
-                    </div>
+                    </div> */}
                 </div>
             </main>
             
-            {/* Footer Component */}
+            {/* Footer Component
             <footer className="flex flex-col md:flex-row justify-between items-center px-12 mt-auto w-full opacity-60 py-8 bg-transparent">
                 <div className="mb-4 md:mb-0">
-                    <span className="text-sm font-bold text-on-surface font-headline tracking-tight">The Digital Cartographer</span>
+                    <span className="text-sm font-bold text-on-surface font-headline tracking-tight">AWSTopo</span>
                 </div>
                 <div className="flex flex-col items-center md:items-end space-y-2">
                     <nav className="flex space-x-6">
@@ -143,7 +130,7 @@ export default function RegisterPage() {
                     </nav>
                     <p className="font-body text-xs font-medium text-on-secondary-container">© 2024 The Digital Cartographer. Built for AWS Architecture.</p>
                 </div>
-            </footer>
+            </footer> */}
         </div>
     );
 }

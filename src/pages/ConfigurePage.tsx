@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { configureAws, validateAws, startPipeline, getPipelineStatus } from '../api/api';
+import {
+    MdAccountTree, MdDashboard, MdAdminPanelSettings,
+    MdCheck, MdContentCopy, MdVerified, MdRefresh,
+    MdSecurity, MdExpandMore, MdArrowForward,
+    MdCheckCircle, MdRocketLaunch, MdLogout,
+} from 'react-icons/md';
+import { useAuth } from '../context/AuthContext';
+import { getExternalId, configureAwsRole, startScan, getScanStatus } from '../api/api';
 
 type Step = 'arn' | 'validate' | 'scan' | 'scanning';
 
@@ -8,63 +15,73 @@ export default function ConfigurePage() {
     const [step, setStep] = useState<Step>('arn');
     const [arn, setArn] = useState('');
     const [externalId, setExternalId] = useState('');
+    const [scanStatus, setScanStatus] = useState<string>('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [progress, setProgress] = useState(0);
     const [copied, setCopied] = useState(false);
     const navigate = useNavigate();
+    const { user, logout } = useAuth();
 
-    const handleConfigure = async () => {
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    // Step 1: Fetch external ID for the trust policy
+    const handleSubmitArn = async () => {
         if (!arn.trim()) { setError('Please enter a valid ARN'); return; }
+        if (!arn.startsWith('arn:aws')) { setError('ARN must start with arn:aws'); return; }
         setError('');
         setLoading(true);
         try {
-            const result = await configureAws(arn);
+            const result = await getExternalId();
             setExternalId(result.external_id);
             setStep('validate');
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Configuration failed');
+            setError(err instanceof Error ? err.message : 'Failed to retrieve external ID');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleValidate = async () => {
+    // Step 2: Save the ARN + external ID to the backend
+    const handleConfigureRole = async () => {
         setError('');
         setLoading(true);
         try {
-            const result = await validateAws(arn, externalId);
-            if (result.valid) {
-                setStep('scan');
-            } else {
-                setError(result.message || 'Validation failed — ensure the trust policy is configured correctly.');
-            }
+            await configureAwsRole(arn);
+            setStep('scan');
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Validation failed');
+            setError(err instanceof Error ? err.message : 'Failed to configure role — check that the trust policy is set correctly');
         } finally {
             setLoading(false);
         }
     };
 
+    // Step 3: Start the scan and poll for completion
     const handleStartScan = async () => {
         setError('');
         setLoading(true);
         setStep('scanning');
+        setScanStatus('queued');
         try {
-            const { scan_id } = await startPipeline(arn.split(':')[4] || '123456789012');
-            let status = 'running';
-            let prog = 0;
-            while (status === 'running' || status === 'pending') {
-                const res = await getPipelineStatus(scan_id);
+            const { scan_id } = await startScan();
+            let status = 'queued';
+            while (status === 'queued' || status === 'running') {
+                await new Promise((r) => setTimeout(r, 2000));
+                const res = await getScanStatus(scan_id);
                 status = res.status;
-                prog = res.progress;
-                setProgress(prog);
-                if (status === 'completed') break;
-                await new Promise((r) => setTimeout(r, 1000));
+                setScanStatus(status);
+                if (status === 'completed') {
+                    navigate(`/visualize/${scan_id}`);
+                    return;
+                }
+                if (status === 'failed') {
+                    throw new Error(res.error || 'Scan failed — check your IAM role permissions');
+                }
             }
-            navigate(`/visualize/${scan_id}`);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Pipeline failed');
+            setError(err instanceof Error ? err.message : 'Scan failed');
             setStep('scan');
         } finally {
             setLoading(false);
@@ -84,14 +101,25 @@ export default function ConfigurePage() {
             {/* TopAppBar */}
             <header className="w-full top-0 z-50 flex justify-between items-center px-8 h-16 bg-[#f7f9fe] font-headline tracking-tight border-b border-surface-container">
                 <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-primary">account_tree</span>
-                    <span className="text-xl font-bold text-[#181c20] uppercase tracking-tighter">Digital Cartographer</span>
+                    <MdAccountTree className="text-primary text-xl" />
+                    <span className="text-xl font-bold text-[#181c20] uppercase tracking-tighter">AWSTopo</span>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                     <nav className="hidden md:flex gap-8">
                         <Link className="text-[#576474] hover:bg-[#f1f4f9] transition-colors px-3 py-2 rounded-lg text-sm font-medium" to="/visualize/demo">Dashboard</Link>
                         <Link className="text-primary font-bold px-3 py-2 rounded-lg text-sm bg-primary/5" to="/configure">Configuration</Link>
                     </nav>
+                    <div className="flex items-center gap-3 pl-4 border-l border-surface-container">
+                        <span className="text-xs text-on-secondary-container hidden sm:block">{user?.email}</span>
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-[#576474] hover:bg-error-container hover:text-on-error-container transition-colors"
+                            title="Sign out"
+                        >
+                            <MdLogout className="text-base" />
+                            <span className="hidden sm:block">Sign out</span>
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -103,11 +131,11 @@ export default function ConfigurePage() {
                     </div>
                     <nav className="flex flex-col gap-1 pr-4">
                         <a className="flex items-center gap-3 px-6 py-3 text-[#576474] transition-transform duration-200" href="#">
-                            <span className="material-symbols-outlined">dashboard</span>
+                            <MdDashboard className="text-xl" />
                             <span className="font-headline text-sm uppercase tracking-wider">Workspace</span>
                         </a>
                         <a className="flex items-center gap-3 px-6 py-3 bg-white text-primary rounded-r-full font-bold shadow-sm translate-x-1" href="#">
-                            <span className="material-symbols-outlined">shield_person</span>
+                            <MdAdminPanelSettings className="text-xl" />
                             <span className="font-headline text-sm uppercase tracking-wider">IAM Config</span>
                         </a>
                     </nav>
@@ -120,18 +148,18 @@ export default function ConfigurePage() {
                         <div className="flex items-center justify-between relative">
                             <div className="absolute top-1/2 left-0 w-full h-[2px] bg-surface-container -translate-y-1/2 z-0"></div>
                             <div className={`absolute top-1/2 left-0 h-[2px] bg-primary transition-all duration-500 z-0 ${stepIndex === 0 ? 'w-0' : stepIndex === 1 ? 'w-1/2' : 'w-full'}`}></div>
-                            
+
                             {/* Step 1 */}
                             <div className="relative z-10 flex flex-col items-center gap-3">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors ${stepIndex >= 0 ? 'bg-primary text-white' : 'bg-surface-container text-on-secondary-container'}`}>
-                                    {stepIndex > 0 ? <span className="material-symbols-outlined text-sm">check</span> : <span className="font-headline font-bold">1</span>}
+                                    {stepIndex > 0 ? <MdCheck className="text-sm" /> : <span className="font-headline font-bold">1</span>}
                                 </div>
                                 <span className={`text-xs font-bold uppercase tracking-widest ${stepIndex >= 0 ? 'text-primary' : 'text-on-secondary-container'}`}>Step 1: Account</span>
                             </div>
                             {/* Step 2 */}
                             <div className="relative z-10 flex flex-col items-center gap-3">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${stepIndex >= 1 ? 'bg-primary text-white shadow-xl ring-4 ring-primary-fixed' : 'bg-surface-container text-on-secondary-container'}`}>
-                                    {stepIndex > 1 ? <span className="material-symbols-outlined text-sm">check</span> : <span className="font-headline font-bold">2</span>}
+                                    {stepIndex > 1 ? <MdCheck className="text-sm" /> : <span className="font-headline font-bold">2</span>}
                                 </div>
                                 <span className={`text-xs font-bold uppercase tracking-widest ${stepIndex >= 1 ? 'text-primary' : 'text-on-secondary-container'}`}>Step 2: Configuration</span>
                             </div>
@@ -140,7 +168,7 @@ export default function ConfigurePage() {
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${stepIndex >= 2 ? 'bg-primary text-white shadow-lg' : 'bg-surface-container text-on-secondary-container'}`}>
                                     <span className="font-headline font-bold">3</span>
                                 </div>
-                                <span className={`text-xs font-bold uppercase tracking-widest ${stepIndex >= 2 ? 'text-primary' : 'text-on-secondary-container'}`}>Step 3: Verify</span>
+                                <span className={`text-xs font-bold uppercase tracking-widest ${stepIndex >= 2 ? 'text-primary' : 'text-on-secondary-container'}`}>Step 3: Scan</span>
                             </div>
                         </div>
                     </section>
@@ -152,60 +180,65 @@ export default function ConfigurePage() {
                                 <h1 className="text-4xl font-extrabold text-on-surface tracking-tight mb-2">Configure AWS Role</h1>
                                 <p className="text-on-secondary-container font-body">Establish a secure, cross-account trust relationship to allow Cloud Cartographer to visualize your infrastructure.</p>
                             </div>
-                            
+
                             <div className="space-y-6">
-                                {/* ARN Input (Always visible but disabled later) */}
+                                {/* ARN Input */}
                                 <div className="group">
                                     <label className="block text-xs font-bold uppercase tracking-widest text-on-secondary-container mb-3">IAM Role ARN</label>
                                     <div className="relative">
-                                        <input 
-                                            className="w-full bg-surface-container-low border-0 border-b-2 border-transparent focus:border-primary focus:bg-surface-container-lowest focus:ring-0 transition-all duration-300 p-4 rounded-t-lg font-mono text-sm text-on-surface disabled:opacity-50" 
-                                            placeholder="arn:aws:iam::123456789012:role/CloudCartographerRole" type="text"
-                                            value={arn} onChange={(e) => setArn(e.target.value)}
+                                        <input
+                                            className="w-full bg-surface-container-low border-0 border-b-2 border-transparent focus:border-primary focus:bg-surface-container-lowest focus:ring-0 transition-all duration-300 p-4 rounded-t-lg font-mono text-sm text-on-surface disabled:opacity-50"
+                                            placeholder="arn:aws:iam::123456789012:role/CloudCartographerRole"
+                                            type="text"
+                                            value={arn}
+                                            onChange={(e) => setArn(e.target.value)}
                                             disabled={step !== 'arn'}
                                         />
                                     </div>
                                     <p className="mt-2 text-xs text-on-secondary-container opacity-70">Paste the full ARN of the role you created in your AWS Console.</p>
                                 </div>
 
-                                {/* External ID Display for Validate Step */}
-                                {step === 'validate' && (
+                                {/* External ID — shown in validate step */}
+                                {(step === 'validate' || step === 'scan' || step === 'scanning') && (
                                     <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/15 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                         <label className="block text-xs font-bold uppercase tracking-widest text-on-secondary-container mb-3">Unique External ID</label>
                                         <div className="flex items-center justify-between bg-surface-container-low p-4 rounded-lg">
-                                            <code className="text-primary font-bold tracking-wider">{externalId}</code>
-                                            <button 
+                                            <code className="text-primary font-bold tracking-wider break-all">{externalId}</code>
+                                            <button
                                                 onClick={() => copyToClipboard(externalId)}
-                                                className="flex items-center gap-2 px-3 py-1.5 bg-secondary-fixed text-on-secondary-fixed rounded-full hover:bg-secondary-container transition-colors text-xs font-bold uppercase tracking-tighter">
-                                                <span className="material-symbols-outlined text-sm">{copied ? 'check' : 'content_copy'}</span>
+                                                className="flex-shrink-0 ml-4 flex items-center gap-2 px-3 py-1.5 bg-secondary-fixed text-on-secondary-fixed rounded-full hover:bg-secondary-container transition-colors text-xs font-bold uppercase tracking-tighter">
+                                                {copied ? <MdCheck className="text-sm" /> : <MdContentCopy className="text-sm" />}
                                                 {copied ? 'Copied' : 'Copy'}
                                             </button>
                                         </div>
-                                        <p className="mt-3 text-xs text-on-secondary-container">Add this ID to your Trust Relationship to prevent 'Confused Deputy' attacks.</p>
+                                        <p className="mt-3 text-xs text-on-secondary-container">
+                                            Add this ID to your IAM role's trust policy <code className="bg-surface-container px-1 rounded">sts:ExternalId</code> condition, then click <strong>Configure Role</strong>.
+                                        </p>
                                     </div>
                                 )}
 
-                                {/* Scanning States */}
+                                {/* Role Configured — scan step */}
                                 {step === 'scan' && (
                                     <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/15 text-center py-10 animate-in fade-in slide-in-from-bottom-2">
                                         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                                            <span className="material-symbols-outlined text-3xl text-primary">verified</span>
+                                            <MdVerified className="text-3xl text-primary" />
                                         </div>
-                                        <h2 className="text-xl font-bold text-on-surface mb-2">Account Validated!</h2>
-                                        <p className="text-sm text-on-secondary-container">Your AWS account is securely connected. Begin the mapping process.</p>
+                                        <h2 className="text-xl font-bold text-on-surface mb-2">Role Configured!</h2>
+                                        <p className="text-sm text-on-secondary-container">Your AWS IAM role is saved. Start the scan to discover your infrastructure.</p>
                                     </div>
                                 )}
 
+                                {/* Scanning */}
                                 {step === 'scanning' && (
                                     <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/15 text-center py-10 animate-in fade-in">
-                                         <div className="mb-4">
-                                            <span className="material-symbols-outlined text-4xl text-primary animate-spin">refresh</span>
-                                         </div>
-                                         <h2 className="text-xl font-bold text-on-surface mb-4">Scanning Infrastructure...</h2>
-                                         <div className="w-full bg-surface-container rounded-full h-2">
-                                            <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                                         </div>
-                                         <p className="text-xs text-on-secondary-container mt-3">{progress}% complete</p>
+                                        <div className="mb-4">
+                                            <MdRefresh className="text-4xl text-primary animate-spin" />
+                                        </div>
+                                        <h2 className="text-xl font-bold text-on-surface mb-4">Scanning Infrastructure...</h2>
+                                        <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
+                                            <div className="bg-primary h-2 rounded-full animate-pulse w-full"></div>
+                                        </div>
+                                        <p className="text-xs text-on-secondary-container mt-3 capitalize">{scanStatus === 'queued' ? 'Queued — waiting to start' : 'Running — discovering resources'}</p>
                                     </div>
                                 )}
 
@@ -221,28 +254,28 @@ export default function ConfigurePage() {
                         <div className="lg:col-span-5 space-y-6">
                             <div className="bg-surface-container-low p-8 rounded-2xl border border-outline-variant/10">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <span className="material-symbols-outlined text-primary">security</span>
+                                    <MdSecurity className="text-primary text-xl" />
                                     <h2 className="font-headline font-bold text-lg text-on-surface">Security Policies</h2>
                                 </div>
                                 <div className="space-y-4">
                                     <details className="group bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/15" open>
                                         <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-container transition-colors">
                                             <span className="text-sm font-bold text-on-surface">IAM Trust Policy</span>
-                                            <span className="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+                                            <MdExpandMore className="text-xl transition-transform group-open:rotate-180" />
                                         </summary>
                                         <div className="p-4 bg-inverse-surface text-inverse-on-surface font-mono text-xs overflow-x-auto">
-                                        <pre>{`{
+                                            <pre>{`{
   "Version": "2012-10-17",
   "Statement": [
     {
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::<Account>:root"
+        "AWS": "<given-aws-identity>"
       },
       "Action": "sts:AssumeRole",
       "Condition": {
         "StringEquals": {
-          "sts:ExternalId": "${externalId || '...'}"
+          "sts:ExternalId": "${externalId || '<external_id>'}"
         }
       }
     }
@@ -254,7 +287,7 @@ export default function ConfigurePage() {
                                     <details className="group bg-surface-container-lowest rounded-xl overflow-hidden border border-outline-variant/15">
                                         <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-container transition-colors">
                                             <span className="text-sm font-bold text-on-surface">IAM Permissions Policy</span>
-                                            <span className="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+                                            <MdExpandMore className="text-xl transition-transform group-open:rotate-180" />
                                         </summary>
                                         <div className="p-4 bg-inverse-surface text-inverse-on-surface font-mono text-xs overflow-x-auto">
                                             <pre>{`{
@@ -264,7 +297,11 @@ export default function ConfigurePage() {
       "Action": [
         "ec2:Describe*",
         "rds:Describe*",
-        "s3:List*"
+        "s3:List*",
+        "s3:GetBucketLocation",
+        "s3:GetBucketVersioning",
+        "s3:GetBucketPolicy",
+        "s3:GetEncryptionConfiguration"
       ],
       "Effect": "Allow",
       "Resource": "*"
@@ -284,32 +321,44 @@ export default function ConfigurePage() {
             <footer className="absolute bottom-0 w-full bg-surface-container-lowest border-t border-outline-variant/20 shadow-[0_-12px_32px_rgba(24,28,32,0.04)] px-8 py-6 z-50">
                 <div className="max-w-screen-xl mx-auto flex items-center justify-end">
                     <div className="flex items-center gap-4">
-                        {step === 'validate' || step === 'scan' ? (
-                            <button onClick={() => { setStep('arn'); setError(''); }} className="px-6 py-3 text-on-secondary-container font-headline font-bold hover:bg-surface-container-low rounded-lg transition-all">
+                        {(step === 'validate' || step === 'scan') && (
+                            <button
+                                onClick={() => { setStep('arn'); setError(''); }}
+                                className="px-6 py-3 text-on-secondary-container font-headline font-bold hover:bg-surface-container-low rounded-lg transition-all">
                                 Back
                             </button>
-                        ): null}
+                        )}
 
                         {step === 'arn' && (
-                            <button disabled={loading} onClick={handleConfigure} className="flex items-center gap-3 bg-gradient-to-br from-primary to-primary-container px-10 py-3 rounded-lg text-white font-headline font-extrabold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 disabled:opacity-50">
-                                {loading ? 'Processing...' : 'Submit ARN'}
-                                <span className="material-symbols-outlined">arrow_forward</span>
+                            <button
+                                disabled={loading}
+                                onClick={handleSubmitArn}
+                                className="flex items-center gap-3 bg-gradient-to-br from-primary to-primary-container px-10 py-3 rounded-lg text-white font-headline font-extrabold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 disabled:opacity-50">
+                                {loading ? 'Fetching External ID...' : 'Submit ARN'}
+                                <MdArrowForward className="text-xl" />
                             </button>
                         )}
 
                         {step === 'validate' && (
-                            <button disabled={loading} onClick={handleValidate} className="flex items-center gap-3 bg-gradient-to-br from-primary to-primary-container px-10 py-3 rounded-lg text-white font-headline font-extrabold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 disabled:opacity-50">
-                                {loading ? 'Validating...' : 'Validate Account'}
-                                <span className="material-symbols-outlined">check_circle</span>
+                            <button
+                                disabled={loading}
+                                onClick={handleConfigureRole}
+                                className="flex items-center gap-3 bg-gradient-to-br from-primary to-primary-container px-10 py-3 rounded-lg text-white font-headline font-extrabold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 disabled:opacity-50">
+                                {loading ? 'Configuring...' : 'Configure Role'}
+                                <MdCheckCircle className="text-xl" />
                             </button>
                         )}
 
                         {step === 'scan' && (
-                            <button disabled={loading} onClick={handleStartScan} className="flex items-center gap-3 bg-gradient-to-br from-primary to-primary-container px-10 py-3 rounded-lg text-white font-headline font-extrabold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 disabled:opacity-50">
+                            <button
+                                disabled={loading}
+                                onClick={handleStartScan}
+                                className="flex items-center gap-3 bg-gradient-to-br from-primary to-primary-container px-10 py-3 rounded-lg text-white font-headline font-extrabold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 disabled:opacity-50">
                                 {loading ? 'Starting...' : 'Start Mapping'}
-                                <span className="material-symbols-outlined">rocket_launch</span>
+                                <MdRocketLaunch className="text-xl" />
                             </button>
                         )}
+
                         {step === 'scanning' && (
                             <button disabled className="flex items-center gap-3 bg-surface-container px-10 py-3 rounded-lg text-outline opacity-50 font-headline font-extrabold transition-all">
                                 Mapping In Progress...
